@@ -6,39 +6,42 @@ import Html.Events exposing (..)
 import Signal exposing (Address)
 import StartApp.Simple as StartApp
 
-import String exposing (length)
-
 -- MODEL --
 
 type QuizState = Start | Playing | Paused | End
 
-type alias Value = String
-type alias Selected = Bool
-
-type alias Item = (Value, Selected)
+type alias Item =
+  { id: Int
+  , value: String
+  , selected: Bool
+  }
 
 type alias Matchable =
-  { items: List Item
+  { id: Int
+  ,items: List Item
   , matched: Bool
   }
 
 type alias Model =
   { title : String
   , description: String
-  , columns: Int
   , data: List Matchable
   , score: Int
   , guessesRemaining: Int
   , state: QuizState
   }
 
-item : Value -> Item
-item val =
-  (val, False)
+item : Int -> String -> Item
+item id value =
+  { id = id
+  , value = value
+  , selected = False
+  }
 
-matchable : List Item -> Matchable
-matchable itemsList =
-  { items = itemsList
+matchable : Int -> List Item -> Matchable
+matchable id itemsList =
+  { id = id
+  , items = itemsList
   , matched = False
   }
 
@@ -46,15 +49,14 @@ initialModel : Model
 initialModel =
   { title = "Matchable Quiz"
   , description = "A quiz app based on Sporcle's multi-column match quiz"
-  , columns = 2
   , data =
-    [ matchable [item "Monday", item "lunes"]
-    , matchable [item "Tuesday", item "martes"]
-    , matchable [item "Wednesday", item "miércoles"]
-    , matchable [item "Thursday", item "jueves"]
-    , matchable [item "Friday", item "viernes"]
-    , matchable [item "Saturday", item "sábado"]
-    , matchable [item "Sunday", item "domingo"]
+    [ matchable 1 [item 1 "Monday", item 2 "lunes"]
+    , matchable 2 [item 1 "Tuesday", item 2 "martes"]
+    , matchable 3 [item 1 "Wednesday", item 2 "miércoles"]
+    , matchable 4 [item 1 "Thursday", item 2 "jueves"]
+    , matchable 5 [item 1 "Friday", item 2 "viernes"]
+    , matchable 6 [item 1 "Saturday", item 2 "sábado"]
+    , matchable 7 [item 1 "Sunday", item 2 "domingo"]
     ]
   , score = 0
   , guessesRemaining = List.length [1,2,3]
@@ -108,32 +110,28 @@ startView address model =
 
 playView address model =
   let
-    values : List (List Value)
-    values =
-      List.map (\matchable -> matchable.items) model.data
-        |> List.map List.unzip
-        |> List.map fst
+    tile : String -> Html
+    tile value =
+      li [ class "tile" ] [text value]
 
-    -- TODO: Map over values for dynamic generation of columns rather than
-    -- assuming length of two and using List.take & List.drop
+    -- TODO: Shuffle lists
 
     left : List Html
     left =
-      List.concatMap (\val -> List.take 1 val) values
-        |> List.map (\val -> li [ class "tile" ] [ text val ])
+      List.map (\matchable -> matchable.items) model.data
+        |> List.concatMap (List.filter (\item -> item.id == 1))
+        |> List.map (\item -> tile item.value)
 
     right : List Html
-    -- TODO: Find a way to shuffle list instead of sorting by length
     right =
-      List.concatMap (\val -> List.drop 1 val) values
-        |> List.sortBy String.length
-        |> List.map (\val -> li [ class "tile" ] [ text val ])
-
+      List.map (\matchable -> matchable.items) model.data
+        |> List.concatMap (List.filter (\item -> item.id == 2))
+        |> List.map (\item -> tile item.value)
 
   in
     div [ id "container" ]
       [ h1 [ ] [ text "Quiz!" ]
-      , h3 [ ] [ text ("This is a " ++ (toString model.columns) ++ " column quiz.") ]
+      , h3 [ ] [ text ("This is a 2 column matching quiz.") ]
       , h3 [ ] [ text ("State: " ++ (toString model.state)) ]
       , div
           [ class "row" ]
