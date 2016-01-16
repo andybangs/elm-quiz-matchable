@@ -11,7 +11,8 @@ import StartApp.Simple as StartApp
 type QuizState = Start | Playing | Paused | End
 
 type alias Item =
-  { id: Int
+  { mid: Int
+  ,id: Int
   , value: String
   , selected: Bool
   }
@@ -31,9 +32,10 @@ type alias Model =
   , state: QuizState
   }
 
-item : Int -> String -> Item
-item id value =
-  { id = id
+item : Int -> Int -> String -> Item
+item mid id value =
+  { mid = mid
+  , id = id
   , value = value
   , selected = False
   }
@@ -50,13 +52,13 @@ initialModel =
   { title = "Matchable Quiz"
   , description = "A quiz app based on Sporcle's multi-column match quiz"
   , data =
-    [ matchable 1 [item 1 "Monday", item 2 "lunes"]
-    , matchable 2 [item 1 "Tuesday", item 2 "martes"]
-    , matchable 3 [item 1 "Wednesday", item 2 "miércoles"]
-    , matchable 4 [item 1 "Thursday", item 2 "jueves"]
-    , matchable 5 [item 1 "Friday", item 2 "viernes"]
-    , matchable 6 [item 1 "Saturday", item 2 "sábado"]
-    , matchable 7 [item 1 "Sunday", item 2 "domingo"]
+    [ matchable 1 [item 1 1 "Monday", item 1 2 "lunes"]
+    , matchable 2 [item 2 1 "Tuesday", item 2 2 "martes"]
+    , matchable 3 [item 3 1 "Wednesday", item 3 2 "miércoles"]
+    , matchable 4 [item 4 1 "Thursday", item 4 2 "jueves"]
+    , matchable 5 [item 5 1 "Friday", item 5 2 "viernes"]
+    , matchable 6 [item 6 1 "Saturday", item 6 2 "sábado"]
+    , matchable 7 [item 7 1 "Sunday", item 7 2 "domingo"]
     ]
   , score = 0
   , guessesRemaining = List.length [1,2,3]
@@ -73,6 +75,7 @@ type Action
   | Resume
   | Quit
   | Reset
+  | Select Int Int Bool
 
 update : Action -> Model -> Model
 update action model =
@@ -95,6 +98,18 @@ update action model =
     Reset ->
       { model | state = Start }
 
+    Select mid id selected ->
+      let
+        updateItem i =
+          if id /= i.id then i
+          else { i | selected = (not i.selected) }
+
+        updateMatchable m =
+          if mid /= m.id then m
+          else { m | items = List.map updateItem m.items }
+      in
+        { model | data = List.map updateMatchable model.data }
+
 
 -- VIEW --
 
@@ -110,9 +125,13 @@ startView address model =
 
 playView address model =
   let
-    tile : String -> Html
-    tile value =
-      li [ class "tile" ] [text value]
+    tile : Int -> Int -> String -> Bool -> Html
+    tile mid id value selected =
+      li
+        [ classList [ ("tile", True), ("highlight", selected) ]
+        , onClick address (Select mid id selected)
+        ]
+        [text value]
 
     -- TODO: Shuffle lists
 
@@ -120,13 +139,13 @@ playView address model =
     left =
       List.map (\matchable -> matchable.items) model.data
         |> List.concatMap (List.filter (\item -> item.id == 1))
-        |> List.map (\item -> tile item.value)
+        |> List.map (\item -> tile item.mid item.id item.value item.selected)
 
     right : List Html
     right =
       List.map (\matchable -> matchable.items) model.data
         |> List.concatMap (List.filter (\item -> item.id == 2))
-        |> List.map (\item -> tile item.value)
+        |> List.map (\item -> tile item.mid item.id item.value item.selected)
 
   in
     div [ id "container" ]
