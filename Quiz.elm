@@ -100,15 +100,21 @@ update action model =
 
     Select mid id selected ->
       let
-        updateItem i =
+        deselectItem i =
+          if mid /= i.mid && id /= i.id then i
+          else { i | selected = False }
+
+        selectItem i =
           if id /= i.id then i
           else { i | selected = (not i.selected) }
 
         updateMatchable m =
-          if mid /= m.id then m
-          else { m | items = List.map updateItem m.items }
+          if mid /= m.id then { m | items = List.map deselectItem m.items}
+          else { m | items = List.map selectItem m.items }
       in
-        { model | data = List.map updateMatchable model.data }
+        { model |
+          data = List.map updateMatchable model.data
+        }
 
 
 -- VIEW --
