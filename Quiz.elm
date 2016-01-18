@@ -5,6 +5,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Signal exposing (Address)
 import StartApp.Simple as StartApp
+import Debug
 
 -- MODEL --
 
@@ -23,9 +24,6 @@ type alias Matchable =
   , matched: Bool
   }
 
-type alias Selected =
-  List (Int, Int)
-
 type alias Data =
   List Matchable
 
@@ -33,7 +31,6 @@ type alias Model =
   { title : String
   , description: String
   , data: Data
-  , selected: Selected
   , score: Int
   , guessesRemaining: Int
   , state: QuizState
@@ -67,7 +64,6 @@ initialModel =
     , matchable 6 [item 6 1 "Saturday", item 6 2 "sábado"]
     , matchable 7 [item 7 1 "Sunday", item 7 2 "domingo"]
     ]
-  , selected = []
   , score = 0
   , guessesRemaining = 7
   , state = Start
@@ -108,6 +104,7 @@ update action model =
 
     Select mid id selected ->
       let
+        -- model.data --
         deselectItem : Item -> Item
         deselectItem i =
           if mid /= i.mid && id /= i.id then i
@@ -118,24 +115,53 @@ update action model =
           if id /= i.id then i
           else { i | selected = (not i.selected) }
 
+        updateMatched : List Item -> Bool -> Bool
+        updateMatched items matched =
+          let
+            selected =
+              List.map (\i -> i.selected) items
+          in
+            if List.member False selected then matched
+            else True
+
         updateMatchable : Matchable -> Matchable
         updateMatchable m =
-          if mid /= m.id then { m | items = List.map deselectItem m.items}
-          else { m | items = List.map selectItem m.items }
+          if mid /= m.id then
+            let
+              updatedItems = List.map deselectItem m.items
+            in
+              { m |
+                items = updatedItems
+              , matched = updateMatched updatedItems m.matched
+              }
+          else
+            let
+              updatedItems = List.map selectItem m.items
+            in
+              { m |
+                items = updatedItems
+              , matched = updateMatched updatedItems m.matched
+              }
+
+        updateData : Data -> Data
+        updateData data =
+          List.map updateMatchable data
 
         newData : Data
-        newData = List.map updateMatchable model.data
+        newData = updateData model.data
 
-        updateSelected : Data -> Selected
-        updateSelected ms =
-          List.filter (\m -> m.matched == False ) ms
-            |> List.concatMap (\m -> m.items)
-            |> List.filter (\i -> i.selected == True)
-            |> List.map (\i -> (i.mid, i.id))
+        -- model.score --
+        calcScore : Data -> Int
+        calcScore ms =
+          List.filter (\m -> m.matched == True) ms
+            |> List.length
+
+        newScore : Int
+        newScore = calcScore newData
       in
         { model |
           data = newData
-        , selected = updateSelected newData
+        , score = newScore
         }
 
 
@@ -179,8 +205,7 @@ playView address model =
     div [ id "container" ]
       [ h1 [ ] [ text "Quiz!" ]
       , h3 [ ] [ text ("State: " ++ (toString model.state)) ]
-      , h3 [ ] [ text ("Selected: " ++ (toString model.selected)) ]
-      -- , h3 [ ] [ text ("Score: " ++ (toString model.score)) ]
+      , h3 [ ] [ text ("Score: " ++ (toString model.score)) ]
       -- , h3 [ ] [ text ("Guesses Remaining: " ++ (toString model.guessesRemaining)) ]
       , h3 [ ] [ text ("Data: " ++ (toString model.data)) ]
       , div
