@@ -12,24 +12,27 @@ type QuizState = Start | Playing | Paused | End
 
 type alias Item =
   { mid: Int
-  ,id: Int
+  , id: Int
   , value: String
   , selected: Bool
   }
 
 type alias Matchable =
   { id: Int
-  ,items: List Item
+  , items: List Item
   , matched: Bool
   }
 
 type alias Selected =
-  ((Int, Int), (Int,Int))
+  List (Int, Int)
+
+type alias Data =
+  List Matchable
 
 type alias Model =
   { title : String
   , description: String
-  , data: List Matchable
+  , data: Data
   , selected: Selected
   , score: Int
   , guessesRemaining: Int
@@ -64,9 +67,9 @@ initialModel =
     , matchable 6 [item 6 1 "Saturday", item 6 2 "sábado"]
     , matchable 7 [item 7 1 "Sunday", item 7 2 "domingo"]
     ]
-  , selected = ((0, 0), (0, 0))
+  , selected = []
   , score = 0
-  , guessesRemaining = List.length [1,2,3]
+  , guessesRemaining = 7
   , state = Start
   }
 
@@ -101,32 +104,38 @@ update action model =
       { model | state = End }
 
     Reset ->
-      { model | state = Start }
+      initialModel
 
     Select mid id selected ->
       let
+        deselectItem : Item -> Item
         deselectItem i =
           if mid /= i.mid && id /= i.id then i
           else { i | selected = False }
 
+        selectItem : Item -> Item
         selectItem i =
           if id /= i.id then i
           else { i | selected = (not i.selected) }
 
+        updateMatchable : Matchable -> Matchable
         updateMatchable m =
           if mid /= m.id then { m | items = List.map deselectItem m.items}
           else { m | items = List.map selectItem m.items }
 
-        updateSelected s =
-          if (mid, id) == fst s then ((0, 0), snd s)
-          else if (mid, id) == snd s then (fst s, (0, 0))
-          else if id == 1 then ((mid, id), snd s)
-          else if id == 2 then (fst s, (mid, id))
-          else s
+        newData : Data
+        newData = List.map updateMatchable model.data
+
+        updateSelected : Data -> Selected
+        updateSelected ms =
+          List.filter (\m -> m.matched == False ) ms
+            |> List.concatMap (\m -> m.items)
+            |> List.filter (\i -> i.selected == True)
+            |> List.map (\i -> (i.mid, i.id))
       in
         { model |
-          data = List.map updateMatchable model.data
-        , selected = updateSelected model.selected
+          data = newData
+        , selected = updateSelected newData
         }
 
 
@@ -169,9 +178,11 @@ playView address model =
   in
     div [ id "container" ]
       [ h1 [ ] [ text "Quiz!" ]
-      , h3 [ ] [ text ("This is a 2 column matching quiz.") ]
       , h3 [ ] [ text ("State: " ++ (toString model.state)) ]
       , h3 [ ] [ text ("Selected: " ++ (toString model.selected)) ]
+      -- , h3 [ ] [ text ("Score: " ++ (toString model.score)) ]
+      -- , h3 [ ] [ text ("Guesses Remaining: " ++ (toString model.guessesRemaining)) ]
+      , h3 [ ] [ text ("Data: " ++ (toString model.data)) ]
       , div
           [ class "row" ]
           [ div
