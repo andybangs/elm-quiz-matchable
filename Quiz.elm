@@ -107,7 +107,7 @@ update action model =
         -- model.data --
         deselectItem : Item -> Item
         deselectItem i =
-          if mid /= i.mid && id /= i.id then i
+          if id /= i.id then i
           else { i | selected = False }
 
         selectItem : Item -> Item
@@ -130,10 +130,7 @@ update action model =
             let
               updatedItems = List.map deselectItem m.items
             in
-              { m |
-                items = updatedItems
-              , matched = updateMatched updatedItems m.matched
-              }
+              { m | items = updatedItems }
           else
             let
               updatedItems = List.map selectItem m.items
@@ -158,6 +155,30 @@ update action model =
 
         newScore : Int
         newScore = calcScore newData
+
+        -- model.guessesRemaining --
+        calcRemaining : Data -> Int -> Int
+        calcRemaining ms r =
+          let
+            countSelected : Data -> Int
+            countSelected ms =
+              List.concatMap (\m -> m.items) ms
+                |> List.filter (\i -> i.selected == True)
+                |> List.length
+
+            matchedSelected =
+              List.filter (\m -> m.matched == True) ms
+                |> countSelected
+
+            unmatchedSelected =
+              List.filter (\m -> m.matched == False) ms
+                |> countSelected
+          in
+            if matchedSelected == 2 || unmatchedSelected == 2 then r - 1
+            else r
+
+        newRemaining : Int
+        newRemaining = calcRemaining newData model.guessesRemaining
       in
         if matched then
           model
@@ -165,6 +186,7 @@ update action model =
           { model |
             data = newData
           , score = newScore
+          , guessesRemaining = newRemaining
           }
 
 
@@ -210,8 +232,8 @@ playView address model =
       [ h1 [ ] [ text "Quiz!" ]
       , h3 [ ] [ text ("State: " ++ (toString model.state)) ]
       , h3 [ ] [ text ("Score: " ++ (toString model.score)) ]
-      -- , h3 [ ] [ text ("Guesses Remaining: " ++ (toString model.guessesRemaining)) ]
-      , h3 [ ] [ text ("Data: " ++ (toString model.data)) ]
+      , h3 [ ] [ text ("Guesses Remaining: " ++ (toString model.guessesRemaining)) ]
+      -- , h3 [ ] [ text ("Data: " ++ (toString model.data)) ]
       , div
           [ class "row" ]
           [ div
