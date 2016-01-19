@@ -197,11 +197,19 @@ update action model =
         if matched then
           model
         else
-          { model |
-            data = newData
-          , score = newScore
-          , wrong = newWrong
-          }
+          if (List.length model.data) == newScore + newWrong then
+            { model |
+              data = newData
+            , score = newScore
+            , wrong = newWrong
+            , state = End
+            }
+          else
+            { model |
+              data = newData
+            , score = newScore
+            , wrong = newWrong
+            }
 
 
 -- VIEW --
@@ -221,7 +229,11 @@ playView address model =
     tile : Int -> Int -> String -> Bool -> Bool -> Html
     tile mid id value selected matched =
       li
-        [ classList [ ("tile", True), ("highlight", selected), ("matched", matched) ]
+        [ classList
+            [ ("tile", True)
+            , ("highlight", selected)
+            , ("matched", matched)
+            ]
         , onClick address (Select mid id selected matched)
         ]
         [text value]
@@ -279,7 +291,7 @@ pauseView address model =
 endView address model =
   div [ id "container" ]
     [ h1 [ ] [ text "Game Over" ]
-    , h3 [ ] [ text "You failed miserably." ]
+    , h3 [ ] [ text ("Score: " ++ (toString model.score) ++ " / " ++ (toString (List.length model.data))) ]
     , h3 [ ] [ text ("State: " ++ (toString model.state)) ]
     , button
         [ onClick address Reset ]
