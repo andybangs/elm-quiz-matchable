@@ -79,3 +79,8 @@ li:hover {
 li.highlight {
   background: #61a1bc;
 }
+
+li.matched {
+  background: #8ec16d;
+  cursor: default;
+}

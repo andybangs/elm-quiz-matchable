@@ -79,7 +79,7 @@ type Action
   | Resume
   | Quit
   | Reset
-  | Select Int Int Bool
+  | Select Int Int Bool Bool
 
 update : Action -> Model -> Model
 update action model =
@@ -102,7 +102,7 @@ update action model =
     Reset ->
       initialModel
 
-    Select mid id selected ->
+    Select mid id selected matched ->
       let
         -- model.data --
         deselectItem : Item -> Item
@@ -159,10 +159,13 @@ update action model =
         newScore : Int
         newScore = calcScore newData
       in
-        { model |
-          data = newData
-        , score = newScore
-        }
+        if matched then
+          model
+        else
+          { model |
+            data = newData
+          , score = newScore
+          }
 
 
 -- VIEW --
@@ -179,27 +182,28 @@ startView address model =
 
 playView address model =
   let
-    tile : Int -> Int -> String -> Bool -> Html
-    tile mid id value selected =
+    tile : Int -> Int -> String -> Bool -> Bool -> Html
+    tile mid id value selected matched =
       li
-        [ classList [ ("tile", True), ("highlight", selected) ]
-        , onClick address (Select mid id selected)
+        [ classList [ ("tile", True), ("highlight", selected), ("matched", matched) ]
+        , onClick address (Select mid id selected matched)
         ]
         [text value]
 
     -- TODO: Shuffle lists
 
+    buildTile : Matchable -> Int -> List Html
+    buildTile matchable id =
+      List.filter (\item -> item.id == id) matchable.items
+        |> List.map (\item -> tile item.mid item.id item.value item.selected matchable.matched)
+
     left : List Html
     left =
-      List.map (\matchable -> matchable.items) model.data
-        |> List.concatMap (List.filter (\item -> item.id == 1))
-        |> List.map (\item -> tile item.mid item.id item.value item.selected)
+      List.concatMap (\matchable -> buildTile matchable 1) model.data
 
     right : List Html
     right =
-      List.map (\matchable -> matchable.items) model.data
-        |> List.concatMap (List.filter (\item -> item.id == 2))
-        |> List.map (\item -> tile item.mid item.id item.value item.selected)
+      List.concatMap (\matchable -> buildTile matchable 2) model.data
 
   in
     div [ id "container" ]
