@@ -32,7 +32,7 @@ type alias Model =
   , description: String
   , data: Data
   , score: Int
-  , guessesRemaining: Int
+  , wrong: Int
   , state: QuizState
   }
 
@@ -65,7 +65,7 @@ initialModel =
     , matchable 7 [item 7 1 "Sunday", item 7 2 "domingo"]
     ]
   , score = 0
-  , guessesRemaining = 7
+  , wrong = 0
   , state = Start
   }
 
@@ -113,7 +113,7 @@ update action model =
         selectItem : Item -> Item
         selectItem i =
           if id /= i.id then i
-          else { i | selected = (not i.selected) }
+          else { i | selected = True }
 
         updateMatched : List Item -> Bool -> Bool
         updateMatched items matched =
@@ -140,9 +140,29 @@ update action model =
               , matched = updateMatched updatedItems m.matched
               }
 
+        numSelected : Data -> Int
+        numSelected data =
+          List.concatMap (\m -> m.items) data
+            |> List.filter (\i -> i.selected == True)
+            |> List.length
+
         updateData : Data -> Data
         updateData data =
-          List.map updateMatchable data
+          let
+            updatedData : Data
+            updatedData =
+              List.map updateMatchable data
+
+            isAnswer : Bool
+            isAnswer =
+              (numSelected updatedData) == 2
+
+            deselectAllItems : Matchable -> Matchable
+            deselectAllItems m =
+              { m | items = List.map (\i -> { i | selected = False }) m.items }
+          in
+            if isAnswer then List.map deselectAllItems updatedData
+            else updatedData
 
         newData : Data
         newData = updateData model.data
@@ -156,29 +176,23 @@ update action model =
         newScore : Int
         newScore = calcScore newData
 
-        -- model.guessesRemaining --
-        calcRemaining : Data -> Int -> Int
-        calcRemaining ms r =
+        -- model.wrong --
+        calcWrong : Data -> (Int, Int) -> Int -> Int
+        calcWrong data sTup w =
           let
-            countSelected : Data -> Int
-            countSelected ms =
-              List.concatMap (\m -> m.items) ms
-                |> List.filter (\i -> i.selected == True)
-                |> List.length
+            oldScore = fst sTup
+            newScore = snd sTup
 
-            matchedSelected =
-              List.filter (\m -> m.matched == True) ms
-                |> countSelected
-
-            unmatchedSelected =
-              List.filter (\m -> m.matched == False) ms
-                |> countSelected
+            isAnswer =
+              (numSelected data) == 2 || (numSelected data) == 0
           in
-            if matchedSelected == 2 || unmatchedSelected == 2 then r - 1
-            else r
+            if isAnswer && newScore == oldScore then w + 1
+            else w
 
-        newRemaining : Int
-        newRemaining = calcRemaining newData model.guessesRemaining
+
+        newWrong : Int
+        newWrong = calcWrong newData (model.score, newScore) model.wrong
+
       in
         if matched then
           model
@@ -186,7 +200,7 @@ update action model =
           { model |
             data = newData
           , score = newScore
-          , guessesRemaining = newRemaining
+          , wrong = newWrong
           }
 
 
@@ -231,8 +245,9 @@ playView address model =
     div [ id "container" ]
       [ h1 [ ] [ text "Quiz!" ]
       , h3 [ ] [ text ("State: " ++ (toString model.state)) ]
-      , h3 [ ] [ text ("Score: " ++ (toString model.score)) ]
-      , h3 [ ] [ text ("Guesses Remaining: " ++ (toString model.guessesRemaining)) ]
+      , h3 [ ] [ text ("Correct: " ++ (toString model.score)) ]
+      , h3 [ ] [ text ("Wrong: " ++ (toString model.wrong)) ]
+      , h3 [ ] [ text ("Guesses Remaining: " ++ (toString ((List.length model.data) - model.score - model.wrong))) ]
       -- , h3 [ ] [ text ("Data: " ++ (toString model.data)) ]
       , div
           [ class "row" ]
